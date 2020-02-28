@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     /* POSIX threads are a rather fat layer above the kernel.  */
     printf("Initial thread: launching a thread\n");
 
-    /* What syscalls are used for thread creations? */
+    /* What syscalls are used for thread creation? */
     pthread_t thr;
     if (0 != pthread_create(&thr, NULL, thread, NULL)) {
         fprintf(stderr, "Initial thread: failed to create a thread");
