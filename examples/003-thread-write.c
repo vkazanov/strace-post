@@ -1,3 +1,5 @@
+/* TODO: */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,8 +11,7 @@ int main(int argc, char *argv[])
 
     pid_t parent_pid = getpid();
 
-    /* Ignore possible error conditions here. What is the name of the syscall
-     * used for fork? */
+    /* Ignore possible error conditions here. */
     pid_t child_pid = fork();
     if (child_pid == 0) {
         /* A child is born! */
@@ -24,11 +25,9 @@ int main(int argc, char *argv[])
     /* Business as usual for the parent. */
     printf("parent (self=%d, child=%d)\n", parent_pid, child_pid);
 
-    /* Wait for child termination. Notice how wait() is a wrapper around the
+    /* Wait for children termination. Notice how wait() is a wrapper around the
      * wait4(2) syscall. */
     wait(NULL);
 
-
-    /* What is the syscall used in exit? */
     exit(EXIT_SUCCESS);
 }
