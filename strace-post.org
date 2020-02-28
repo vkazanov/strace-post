@@ -1,0 +1,129 @@
+* TODO Аннотация
+* TODO Содержание
+* TODO История
+
+  - https://strace.io/
+
+  - tracing syscalls in original UNIX-like systems?
+
+  - read the memoirs!
+
+  - links to sources
+
+  - Unix v6 had a first mention of ptrace (http://man.cat-v.org/unix-6th/2/ptrace)
+
+    debuggers only? any other tools using it in v6?
+
+  - The Design of the Unix Operating System (1986) already contains ptrace (with an example)
+
+    https://github.com/suvratapte/Maurice-Bach-Notes/blob/00943a692099e2c1d69c0b5ef77b05cdf1340c8c/11-Interprocess-Communication.md
+
+    covers System V Release 2 (1984 release)
+
+  - strace in Linux
+
+  - ptrace syscall history
+
+  - ptrace introduction to Linux
+
+  - wikipedia: many relevant historical links
+
+  - wikipedia: advanced features such as fault injection
+
+  - similar tools on other systems (truss in SysV rel.4)
+
+  - ftrace as a kernel-side traces
+
+  - Kerrisk on strace: http://man7.org/conf/ndctechtown2018/system_call_tracing_with_strace-NDC-TechTown-Kerrisk.pdf
+
+  - quick review http://www.osreviews.net/reviews/admin/strace
+
+* TODO Использование strace
+
+  - Linux/UNIX System Programming Course Examples are very good
+
+  - other advanced examples
+
+  - mention Michael's course
+
+  - add terminal session gifs! accompany with code to make it easy to copy. Or just links to the
+    github repo. (ttyrec then seq2gif < ttyrecord > ttyrecord.gif)
+
+  - basic things:
+
+    - run with strace
+
+    - attach
+
+    - multithreaded apps
+
+  - man examples
+
+  - TLPI examples
+
+  - флаги, управляющие вывод программы
+
+  - ptrace
+
+  - ps shows a traced flag as in SysV? i think it's T
+
+  - ptrace is on per-thread basis, there's no generic process, just a main thread, multiple threads
+    or multiple processes each containing multiple threads.
+
+* TODO ptrace
+
+  - https://nullprogram.com/blog/2018/06/23/ - example
+
+  - https://github.com/suvratapte/Maurice-Bach-Notes/blob/00943a692099e2c1d69c0b5ef77b05cdf1340c8c/11-Interprocess-Communication.md
+
+  - https://www.linuxjournal.com/article/6100
+
+  - https://ops.tips/gists/using-c-to-inspect-linux-syscalls/
+
+  - http://www.tldp.org/LDP/LG/issue81/sandeep.html
+
+  - https://www.exploit-db.com/papers/13061
+
+  - http://www.alexonlinux.com/how-debugger-works - CPU-level details
+
+  - https://en.wikipedia.org/wiki/Ptrace
+
+  - https://blog.packagecloud.io/eng/2016/02/29/how-does-strace-work/
+
+  - trace a child
+
+  - attach to an existing process
+
+  - ptrace in SysV docs??
+
+  - ptrace in unix v6 http://man.cat-v.org/unix-6th/2/ptrace
+
+  - ministrace (https://github.com/nelhage/ministrace/blob/master/ministrace.c)
+
+  - SIGTRAP=5 - Trace/breakpoint trap (https://en.wikipedia.org/wiki/Signal_(IPC)#SIGTRAP)
+
+  - how does kernel do it?
+
+  - ptrace syscall
+
+  - a demo usage of ptrace?
+
+  - ptrace in kernel
+
+  - ptrace for debuggers
+
+  - ptrace for sandboxes (proot, etc)
+
+* TODO ptrace - kernel-side story and CPU-level story
+
+  - find implementation
+
+  - read about interrupts
+
+  - INT 3 op replaces an intruction, with an interrupt handler
+
+* TODO Послесловаие
+
+  - other tracing tools and interfaces: ltrace, gdb, perf, BPF...
+
+  - first line of debugging, especially when there's no source code available
