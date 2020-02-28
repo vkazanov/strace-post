@@ -1,4 +1,13 @@
 * TODO Аннотация
+
+  - UNIX programming is always somewhat low-level
+
+  - mention Michael's course
+
+  - strace and truss
+
+  - strace and debuggers
+
 * TODO Содержание
 * TODO История
 
@@ -32,19 +41,15 @@
 
   - similar tools on other systems (truss in SysV rel.4)
 
-  - ftrace as a kernel-side traces
+    https://www.freebsd.org/cgi/man.cgi?query=truss (a rewrite)
 
-  - Kerrisk on strace: http://man7.org/conf/ndctechtown2018/system_call_tracing_with_strace-NDC-TechTown-Kerrisk.pdf
+    http://uw714doc.sco.com/en/man/html.1/truss.1.html
 
-  - quick review http://www.osreviews.net/reviews/admin/strace
+    https://en.wikipedia.org/wiki/Truss_(Unix)
+
+  - there are also some historical comments in the strace(1) manual page
 
 * TODO Использование strace
-
-  - Linux/UNIX System Programming Course Examples are very good
-
-  - other advanced examples
-
-  - mention Michael's course
 
   - add terminal session gifs! accompany with code to make it easy to copy. Or just links to the
     github repo. (ttyrec then seq2gif < ttyrecord > ttyrecord.gif)
@@ -57,11 +62,21 @@
 
     - multithreaded apps
 
+    - monitor file activity
+
+  - advanced things
+
+    - fault injection
+
+    - delay injection
+
+    - success injection
+
   - man examples
 
   - TLPI examples
 
-  - флаги, управляющие вывод программы
+  - additional flags controlling the output
 
   - ptrace
 
@@ -70,7 +85,21 @@
   - ptrace is on per-thread basis, there's no generic process, just a main thread, multiple threads
     or multiple processes each containing multiple threads.
 
-* TODO ptrace
+  - why is there no strace as a library? could be very useful for testing
+
+    https://github.com/strace/strace/issues/70
+
+    also, it's possible to use libseccomp
+
+* TODO the secret sauce: ptrace
+
+  - find implementation
+
+  - read about interrupts
+
+  - INT 3 op replaces an intruction, with an interrupt handler
+
+* TODO using ptrace
 
   - https://nullprogram.com/blog/2018/06/23/ - example
 
@@ -106,24 +135,12 @@
 
   - ptrace syscall
 
-  - a demo usage of ptrace?
-
-  - ptrace in kernel
-
   - ptrace for debuggers
 
   - ptrace for sandboxes (proot, etc)
 
-* TODO ptrace - kernel-side story and CPU-level story
-
-  - find implementation
-
-  - read about interrupts
-
-  - INT 3 op replaces an intruction, with an interrupt handler
-
 * TODO Послесловаие
 
-  - other tracing tools and interfaces: ltrace, gdb, perf, BPF...
+  - other tracing tools in Linux and interfaces: ltrace, ftrace, perf, BPF...
 
   - first line of debugging, especially when there's no source code available
