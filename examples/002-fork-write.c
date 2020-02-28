@@ -28,6 +28,8 @@ int main(int argc, char *argv[])
      * wait4(2) syscall. */
     wait(NULL);
 
+    /* What happens to the child when the parent doesn't wait for its children
+     * to terminate and just terminates? */
 
     /* What is the syscall used in exit? */
     exit(EXIT_SUCCESS);

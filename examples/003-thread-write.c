@@ -1,33 +1,39 @@
-/* TODO: */
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
+#include <pthread.h>
+
+void *thread(void *arg)
+{
+    (void) arg;
+
+    printf("Secondary thread: working\n");
+
+    return NULL;
+}
 
 int main(int argc, char *argv[])
 {
     (void) argc; (void) argv;
 
-    pid_t parent_pid = getpid();
+    /* POSIX threads are a rather fat layer above the kernel.  */
+    printf("Initial thread: launching a thread\n");
 
-    /* Ignore possible error conditions here. */
-    pid_t child_pid = fork();
-    if (child_pid == 0) {
-        /* A child is born! */
-        child_pid = getpid();
-
-        /* In the end of the day printf is just a call to write(2). */
-        printf("child (self=%d)\n", child_pid);
-        exit(EXIT_SUCCESS);
+    /* What syscalls are used for thread creations? */
+    pthread_t thr;
+    if (0 != pthread_create(&thr, NULL, thread, NULL)) {
+        fprintf(stderr, "Initial thread: failed to create a thread");
+        exit(EXIT_FAILURE);
     }
+    printf("Initial thread: message from the initial thread\n");
 
-    /* Business as usual for the parent. */
-    printf("parent (self=%d, child=%d)\n", parent_pid, child_pid);
+    /* What syscalls are used for thread joining? */
+    printf("Initial thread: joining a thread\n");
+    if (0 != pthread_join(thr, NULL)) {
+        fprintf(stderr, "Initial thread: failed to join a thread");
+        exit(EXIT_FAILURE);
+    };
 
-    /* Wait for children termination. Notice how wait() is a wrapper around the
-     * wait4(2) syscall. */
-    wait(NULL);
+    printf("Initial thread: done");
 
     exit(EXIT_SUCCESS);
 }
