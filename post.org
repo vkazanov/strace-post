@@ -80,6 +80,74 @@ exit_group(0)                           = ?
 +++ exited with 0 +++
 #+end_example
 
+* Пример: присоединение к работающему процессу
+
+#+BEGIN_SRC c
+int main(int argc, char *argv[])
+{
+    (void) argc; (void) argv;
+
+    char str[] = "write me\n";
+
+    write(STDOUT_FILENO, str, sizeof(str));
+
+    /* Sleep indefinitely or until a signal arrives */
+    pause();
+
+    write(STDOUT_FILENO, str, sizeof(str));
+
+    return EXIT_SUCCESS;
+}
+#+END_SRC
+
+#+begin_example
+$ gcc examples/write-sleep.c -o write-sleep
+$ ./write-sleep
+./write-sleep
+write me
+^C
+$ strace -o write-sleep.log ./write-sleep
+write me
+^C
+$ cat write-sleep.log
+execve("./write-sleep", ["./write-sleep"], 0x7fff3ff9c7f0 /* 75 vars */) = 0
+brk(NULL)                               = 0x56197a276000
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
+mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7ff9368e7000
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7ff9368e5000
+mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7ff936300000
+mprotect(0x7ff9364e7000, 2097152, PROT_NONE) = 0
+mmap(0x7ff9366e7000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7ff9366e7000
+mmap(0x7ff9366ed000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7ff9366ed000
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7ff9368e64c0) = 0
+mprotect(0x7ff9366e7000, 16384, PROT_READ) = 0
+mprotect(0x561979515000, 4096, PROT_READ) = 0
+mprotect(0x7ff936918000, 4096, PROT_READ) = 0
+munmap(0x7ff9368e7000, 197410)          = 0
+write(1, "write me\n\0", 10)            = 10
+pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
+--- SIGINT {si_signo=SIGINT, si_code=SI_KERNEL} ---
++++ killed by SIGINT +++
+#+end_example
+
+#+begin_example
+$ ./write-sleep &
+[1] 20447
+write me
+$ strace -p 20447
+strace: Process 20447 attached
+pause(
+#+end_example
+
 * Пример: отслеживание дочерних процессов
 
 #+BEGIN_SRC c
@@ -195,3 +263,100 @@ $ cat fork-write.log
 13965 exit_group(0)                     = ?
 13965 +++ exited with 0 +++
 #+end_example
+
+* Пример: фильтрация системных вызовов
+
+#+begin_example
+$ strace -o write.log ./write
+write me to stdout
+$ cat write.log                                                                                                                                  12:28:18
+execve("./write", ["./write"], 0x7ffe46ee03a0 /* 71 vars */) = 0
+brk(NULL)                               = 0x562ef09cf000
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
+mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f01ff92a000
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f01ff928000
+mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f01ff343000
+mprotect(0x7f01ff52a000, 2097152, PROT_NONE) = 0
+mmap(0x7f01ff72a000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f01ff72a000
+mmap(0x7f01ff730000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f01ff730000
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7f01ff9294c0) = 0
+mprotect(0x7f01ff72a000, 16384, PROT_READ) = 0
+mprotect(0x562eef0a0000, 4096, PROT_READ) = 0
+mprotect(0x7f01ff95b000, 4096, PROT_READ) = 0
+munmap(0x7f01ff92a000, 197410)          = 0
+write(1, "write me to stdout\n\0", 20)  = 20
+exit_group(0)                           = ?
++++ exited with 0 +++
+#+end_example
+
+#+begin_example
+$ strace -e trace=write -o write.log ./write
+write me to stdout
+$ cat write.log                                                                                                                                  12:31:13
+write(1, "write me to stdout\n\0", 20)  = 20
++++ exited with 0 +++
+#+end_example
+
+#+begin_example
+$ strace -e trace=\!mmap,access,mprotect,brk -o write.log ./write
+write me to stdout
+$ cat write.log
+execve("./write", ["./write"], 0x7ffe896a5000 /* 75 vars */) = 0
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7fe491d194c0) = 0
+munmap(0x7fe491d1a000, 197410)          = 0
+write(1, "write me to stdout\n\0", 20)  = 20
+exit_group(0)                           = ?
++++ exited with 0 +++
+#+end_example
+
+#+begin_example
+$ strace -e trace=%file -o write.log ./write
+write me to stdout
+$ cat write.log
+execve("./write", ["./write"], 0x7fffb7853d90 /* 75 vars */) = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
++++ exited with 0 +++
+#+end_example
+
+#+begin_example
+$ strace -e trace=%memory -o write.log ./write
+write me to stdout
+$ cat write.log
+brk(NULL)                               = 0x55fb49906000
+mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7fd5fe669000
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fd5fe667000
+mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fd5fe082000
+mprotect(0x7fd5fe269000, 2097152, PROT_NONE) = 0
+mmap(0x7fd5fe469000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7fd5fe469000
+mmap(0x7fd5fe46f000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fd5fe46f000
+mprotect(0x7fd5fe469000, 16384, PROT_READ) = 0
+mprotect(0x55fb48178000, 4096, PROT_READ) = 0
+mprotect(0x7fd5fe69a000, 4096, PROT_READ) = 0
+munmap(0x7fd5fe669000, 197410)          = 0
++++ exited with 0 +++
+#+end_example
+* TODO Пример: отслеживание обращений к файлам
+* TODO Пример: пути к файлами вместо дескрипторов
+* TODO Пример: многопоточные программы
+* TODO Пример: фильтрация сигналов
+* TODO Пример: вставка ошибок, успешных вызовов и задержек
