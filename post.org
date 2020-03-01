@@ -1,0 +1,197 @@
+* Пример: запуск программы под управлением strace
+
+#+BEGIN_SRC c
+int main(int argc, char *argv[])
+{
+    char str[] = "write me to stdout\n";
+    /* write(2) is a simple wrapper around a syscall so it should be easy to
+     * find in the syscall trace. */
+    if (sizeof(str) != write(STDOUT_FILENO, str, sizeof(str))){
+        perror("write");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+#+END_SRC
+
+#+begin_example
+$ gcc examples/write-simple.c -o write
+$ ./write
+write me to stdout
+$ strace ./write
+pexecve("./write", ["./write"], 0x7ffebd6145b0 /* 71 vars */) = 0
+brk(NULL)                               = 0x55ff5489e000
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
+mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f7a2a633000
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f7a2a631000
+mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f7a2a04c000
+mprotect(0x7f7a2a233000, 2097152, PROT_NONE) = 0
+mmap(0x7f7a2a433000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f7a2a433000
+mmap(0x7f7a2a439000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f7a2a439000
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7f7a2a6324c0) = 0
+mprotect(0x7f7a2a433000, 16384, PROT_READ) = 0
+mprotect(0x55ff52b52000, 4096, PROT_READ) = 0
+mprotect(0x7f7a2a664000, 4096, PROT_READ) = 0
+munmap(0x7f7a2a633000, 197410)          = 0
+write(1, "write me to stdout\n\0", 20write me to stdout
+)  = 20
+exit_group(0)                           = ?
+#+end_example
+
+#+begin_example
+$ strace ./write -o write.log
+write me to stdout
+$ cat write.log
+execve("./write", ["./write"], 0x7ffee8696810 /* 71 vars */) = 0
+brk(NULL)                               = 0x5620a234a000
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
+mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f588eee8000
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f588eee6000
+mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f588e901000
+mprotect(0x7f588eae8000, 2097152, PROT_NONE) = 0
+mmap(0x7f588ece8000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f588ece8000
+mmap(0x7f588ecee000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f588ecee000
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7f588eee74c0) = 0
+mprotect(0x7f588ece8000, 16384, PROT_READ) = 0
+mprotect(0x5620a15c9000, 4096, PROT_READ) = 0
+mprotect(0x7f588ef19000, 4096, PROT_READ) = 0
+munmap(0x7f588eee8000, 197410)          = 0
+write(1, "write me to stdout\n\0", 20)  = 20
+exit_group(0)                           = ?
++++ exited with 0 +++
+#+end_example
+
+* Пример: отслеживание дочерних процессов
+
+#+BEGIN_SRC c
+int main(int argc, char *argv[])
+{
+    pid_t parent_pid = getpid();
+    pid_t child_pid = fork();
+    if (child_pid == 0) {
+        /* A child is born! */
+        child_pid = getpid();
+
+        /* In the end of the day printf is just a call to write(2). */
+        printf("child (self=%d)\n", child_pid);
+        exit(EXIT_SUCCESS);
+    }
+
+    printf("parent (self=%d, child=%d)\n", parent_pid, child_pid);
+
+    wait(NULL);
+
+    exit(EXIT_SUCCESS);
+}
+#+END_SRC
+
+#+begin_example
+$ gcc examples/fork-write.c -o fork-write
+$ ./fork-write
+parent (self=11274, child=11275)
+child (self=11275)
+$ strace -o fork-write.log ./fork-write
+parent (self=12084, child=12085)
+child (self=12085)
+$ cat fork-write.log
+execve("./fork-write", ["./fork-write"], 0x7ffc424cef40 /* 71 vars */) = 0
+brk(NULL)                               = 0x55e9d8a83000
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
+mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f251dba1000
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f251db9f000
+mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f251d5ba000
+mprotect(0x7f251d7a1000, 2097152, PROT_NONE) = 0
+mmap(0x7f251d9a1000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f251d9a1000
+mmap(0x7f251d9a7000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f251d9a7000
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7f251dba04c0) = 0
+mprotect(0x7f251d9a1000, 16384, PROT_READ) = 0
+mprotect(0x55e9d85c1000, 4096, PROT_READ) = 0
+mprotect(0x7f251dbd2000, 4096, PROT_READ) = 0
+munmap(0x7f251dba1000, 197410)          = 0
+getpid()                                = 12084
+clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f251dba0790) = 12085
+fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
+brk(NULL)                               = 0x55e9d8a83000
+brk(0x55e9d8aa4000)                     = 0x55e9d8aa4000
+write(1, "parent (self=12084, child=12085)"..., 33) = 33
+wait4(-1, NULL, 0, NULL)                = 12085
+--- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=12085, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+exit_group(0)                           = ?
++++ exited with 0 +++
+#+end_example
+
+#+begin_example
+$ strace -f -o fork-write.log ./fork-write
+parent (self=13965, child=13966)
+child (self=13966)
+$ cat fork-write.log
+13965 execve("./fork-write", ["./fork-write"], 0x7ffe20ff4128 /* 71 vars */) = 0
+13965 brk(NULL)                         = 0x56090d54d000
+13965 access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+13965 access("/etc/ld.so.preload", R_OK) = -1 ENOENT (No such file or directory)
+13965 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+13965 fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
+13965 mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f22aa157000
+13965 close(3)                          = 0
+13965 access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
+13965 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+13965 read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+13965 fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+13965 mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f22aa155000
+13965 mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f22a9b70000
+13965 mprotect(0x7f22a9d57000, 2097152, PROT_NONE) = 0
+13965 mmap(0x7f22a9f57000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f22a9f57000
+13965 mmap(0x7f22a9f5d000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f22a9f5d000
+13965 close(3)                          = 0
+13965 arch_prctl(ARCH_SET_FS, 0x7f22aa1564c0) = 0
+13965 mprotect(0x7f22a9f57000, 16384, PROT_READ) = 0
+13965 mprotect(0x56090c3dc000, 4096, PROT_READ) = 0
+13965 mprotect(0x7f22aa188000, 4096, PROT_READ) = 0
+13965 munmap(0x7f22aa157000, 197410)    = 0
+13965 getpid()                          = 13965
+13965 clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f22aa156790) = 13966
+13965 fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
+13965 brk(NULL)                         = 0x56090d54d000
+13965 brk(0x56090d56e000)               = 0x56090d56e000
+13965 write(1, "parent (self=13965, child=13966)"..., 33) = 33
+13965 wait4(-1,  <unfinished ...>
+13966 getpid()                          = 13966
+13966 fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
+13966 brk(NULL)                         = 0x56090d54d000
+13966 brk(0x56090d56e000)               = 0x56090d56e000
+13966 write(1, "child (self=13966)\n", 19) = 19
+13966 exit_group(0)                     = ?
+13966 +++ exited with 0 +++
+13965 <... wait4 resumed> NULL, 0, NULL) = 13966
+13965 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=13966, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+13965 exit_group(0)                     = ?
+13965 +++ exited with 0 +++
+#+end_example
