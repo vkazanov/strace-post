@@ -62,7 +62,13 @@
 
     - multithreaded apps
 
-    - monitor file activity
+    - -P monitor file-related activity
+
+    - -k show syscall stack traces (when compiled with debug symbols)
+
+    - -w syscall latency
+
+    - -v unabbreviated versions of lengthy things
 
   - advanced things
 

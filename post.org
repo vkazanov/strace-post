@@ -355,8 +355,51 @@ mprotect(0x7fd5fe69a000, 4096, PROT_READ) = 0
 munmap(0x7fd5fe669000, 197410)          = 0
 +++ exited with 0 +++
 #+end_example
+
+* Пример: пути к файлами вместо дескрипторов
+
+#+begin_src c
+void do_write(int out_fd)
+{
+    char str[] = "write me to a file\n";
+
+    if (sizeof(str) != write(out_fd, str, sizeof(str))){
+        perror("write");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    char tmp_filename_template[] = "/tmp/output_fileXXXXXX";
+
+    int out_fd = mkstemp(tmp_filename_template);
+    if (out_fd == -1) {
+        perror("mkstemp");
+        exit(EXIT_FAILURE);
+    }
+
+    do_write(out_fd);
+
+    return EXIT_SUCCESS;
+}
+#+end_src
+
+#+begin_example
+$ strace -e trace=write -o write-tmp-file.log ./write-tmp-file
+$ cat write-tmp-file.log
+write(3, "write me to a file\n\0", 20)  = 20
++++ exited with 0 +++
+#+end_example
+
+#+begin_example
+$ strace -y -e trace=write -o write-tmp-file.log ./write-tmp-file
+$ cat write-tmp-file.log
+write(3</tmp/output_fileCf5MyW>, "write me to a file\n\0", 20) = 20
++++ exited with 0 +++
+#+end_example
+
 * TODO Пример: отслеживание обращений к файлам
-* TODO Пример: пути к файлами вместо дескрипторов
 * TODO Пример: многопоточные программы
 * TODO Пример: фильтрация сигналов
 * TODO Пример: вставка ошибок, успешных вызовов и задержек
