@@ -399,7 +399,7 @@ write(3</tmp/output_fileCf5MyW>, "write me to a file\n\0", 20) = 20
 +++ exited with 0 +++
 #+end_example
 
-* Пример: отслеживание обращений к файлам
+* Пример: отслеживание обращений к путям
 
 #+begin_src c
 void do_write(int out_fd)
@@ -478,6 +478,86 @@ write(3</tmp/test_file.log>, "write me to a file\n\0", 20) = 20
 +++ exited with 0 +++
 #+end_example
 
-* TODO Пример: многопоточные программы
-* TODO Пример: фильтрация сигналов
+* Пример: многопоточные программы
+
+#+begin_src c
+void *thread(void *arg)
+{
+    (void) arg;
+
+    printf("Secondary thread: working\n");
+    sleep(1);
+    printf("Secondary thread: done\n");
+
+    return NULL;
+}
+
+int main(int argc, char *argv[])
+{
+    printf("Initial thread: launching a thread\n");
+
+    pthread_t thr;
+    if (0 != pthread_create(&thr, NULL, thread, NULL)) {
+        fprintf(stderr, "Initial thread: failed to create a thread");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Initial thread: joining a thread\n");
+    if (0 != pthread_join(thr, NULL)) {
+        fprintf(stderr, "Initial thread: failed to join a thread");
+        exit(EXIT_FAILURE);
+    };
+
+    printf("Initial thread: done");
+
+    exit(EXIT_SUCCESS);
+}
+#+end_src
+
+#+begin_example
+$ gcc examples/thread-write.c -pthread -o thread-write
+$ strace -f -othread-write.log ./thread-write
+$ wc -l thread-write.log
+60 thread-write.log
+$ strace -f -e trace="%process,%desc" -othread-write.log ./thread-write
+$ wc -l thread-write.log
+34 thread-write.log
+$ cat thread-write.log
+30418 execve("./thread-write", ["./thread-write"], 0x7fff42e01b80 /* 64 vars */) = 0
+30418 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+30418 fstat(3, {st_mode=S_IFREG|0644, st_size=124066, ...}) = 0
+30418 mmap(NULL, 124066, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7fa91238c000
+30418 close(3)                          = 0
+30418 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libpthread.so.0", O_RDONLY|O_CLOEXEC) = 3
+30418 read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0000b\0\0\0\0\0\0"..., 832) = 832
+30418 fstat(3, {st_mode=S_IFREG|0755, st_size=144976, ...}) = 0
+30418 mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fa91238a000
+30418 mmap(NULL, 2221184, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fa911f65000
+30418 mmap(0x7fa91217e000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x19000) = 0x7fa91217e000
+30418 mmap(0x7fa912180000, 13440, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fa912180000
+30418 close(3)                          = 0
+30418 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+30418 read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+30418 fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+30418 mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fa911b74000
+30418 mmap(0x7fa911f5b000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7fa911f5b000
+30418 mmap(0x7fa911f61000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fa911f61000
+30418 close(3)                          = 0
+30418 mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fa912387000
+30418 arch_prctl(ARCH_SET_FS, 0x7fa912387740) = 0
+30418 fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 0), ...}) = 0
+30418 write(1, "Initial thread: launching a thre"..., 35) = 35
+30418 mmap(NULL, 8392704, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0) = 0x7fa911373000
+30418 clone(child_stack=0x7fa911b72fb0, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7fa911b739d0, tls=0x7fa911b73700, child_tidptr=0x7fa911b739d0) = 30419
+30418 write(1, "Initial thread: joining a thread"..., 33) = 33
+30419 write(1, "Secondary thread: working\n", 26) = 26
+30419 write(1, "Secondary thread: done\n", 23) = 23
+30419 exit(0)                           = ?
+30419 +++ exited with 0 +++
+30418 write(1, "Initial thread: done", 20) = 20
+30418 exit_group(0)                     = ?
+30418 +++ exited with 0 +++
+#+end_example
+
 * TODO Пример: вставка ошибок, успешных вызовов и задержек
+* TODO Пример: отображение стека программы в момент вызова
