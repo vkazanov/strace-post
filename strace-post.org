@@ -4,16 +4,16 @@
 
   - mention Michael's course
 
-  - strace and truss
-
-  - strace and debuggers
-
 * TODO Содержание
 * TODO История
 
   - https://strace.io/
 
   - tracing syscalls in original UNIX-like systems?
+
+  - strace and truss
+
+  - strace and debuggers
 
   - read the memoirs!
 
