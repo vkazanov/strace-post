@@ -88,7 +88,7 @@
 
   - ps shows a traced flag as in SysV? i think it's T
 
-  - ptrace is on per-thread basis, there's no generic process, just a main thread, multiple threads
+  - ptrace is on per-thread basis, there's no generic process, just an initial thread, multiple threads
     or multiple processes each containing multiple threads.
 
   - why is there no strace as a library? could be very useful for testing

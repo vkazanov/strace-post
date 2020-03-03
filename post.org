@@ -559,9 +559,7 @@ $ cat thread-write.log
 30418 +++ exited with 0 +++
 #+end_example
 
-* Пример: отображение стека программы в момент сисемного вызова
-
-
+* Пример: стек процесса в момент системного вызова
 
 #+begin_src c
 void do_write(void)
@@ -594,4 +592,75 @@ write(1, "write me to stdout\n\0", 20)  = 20
 +++ exited with 0 +++
 #+end_example
 
-* TODO Пример: инъекция ошибок, кодов возврата и задержек
+* Пример: инъекция ошибок
+
+#+begin_src c
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void do_write(const char *str, ssize_t len)
+{
+    if (len != write(STDOUT_FILENO, str, (size_t)len)){
+        perror("write");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    (void) argc; (void) argv;
+
+    char str1[] = "write me 1\n";
+    do_write(str1, sizeof(str1));
+
+    char str2[] = "write me 2\n";
+    do_write(str2, sizeof(str2));
+
+    return EXIT_SUCCESS;
+}
+#+end_src
+
+#+begin_example
+$ gcc examples/write-twice.c -o write-twice
+$ ./write-twice
+write me 1
+write me 2
+$ strace -e trace=write -owrite-twice.log ./write-twice
+write me 1
+write me 2
+$ cat write-twice.log
+write(1, "write me 1\n\0", 12)          = 12
+write(1, "write me 2\n\0", 12)          = 12
++++ exited with 0 +++
+#+end_example
+
+#+begin_example
+$ strace -e trace=write -e inject=write:error=EBADF -owrite-twice.log ./write-twice
+$ cat write-twice.log
+write(1, "write me 1\n\0", 12)          = -1 EBADF (Bad file descriptor) (INJECTED)
+write(3, "write: Bad file descriptor\n", 27) = -1 EBADF (Bad file descriptor) (INJECTED)
++++ exited with 1 +++
+$ strace -e trace=write -e inject=write:error=EBADF:when=1 -owrite-twice.log ./write-twice
+write: Bad file descriptor
+$ cat write-twice.log
+write(1, "write me 1\n\0", 12)          = -1 EBADF (Bad file descriptor) (INJECTED)
+write(3, "write: Bad file descriptor\n", 27) = 27
++++ exited with 1 +++
+$ strace -e trace=write -e inject=write:error=EBADF:when=2 -owrite-twice.log ./write-twice
+write me 1
+write: Bad file descriptor
+$ cat write-twice.log
+write(1, "write me 1\n\0", 12)          = 12
+write(1, "write me 2\n\0", 12)          = -1 EBADF (Bad file descriptor) (INJECTED)
+write(3, "write: Bad file descriptor\n", 27) = 27
++++ exited with 1 +++
+#+end_example
+
+#+begin_example
+$ strace -e trace=write -e fault=write:when=1 -owrite-twice.log ./write-twice
+$ cat write-twice.log
+write(1, "write me 1\n\0", 12)          = -1 ENOSYS (Function not implemented) (INJECTED)
+write(3, "write: Function not implemented\n", 32) = 32
++++ exited with 1 +++
+#+end_example
