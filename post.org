@@ -559,5 +559,39 @@ $ cat thread-write.log
 30418 +++ exited with 0 +++
 #+end_example
 
-* TODO Пример: вставка ошибок, успешных вызовов и задержек
-* TODO Пример: отображение стека программы в момент вызова
+* Пример: отображение стека программы в момент сисемного вызова
+
+
+
+#+begin_src c
+void do_write(void)
+{
+    char str[] = "write me to stdout\n";
+    if (sizeof(str) != write(STDOUT_FILENO, str, sizeof(str))){
+        perror("write");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    do_write();
+    return EXIT_SUCCESS;
+}
+#+end_src
+
+#+begin_example
+$ gcc examples/write-simple.c -o write-simple
+$ strace -k -e trace="write" -owrite-simple.log ./write-simple
+write me to stdout
+$ cat write-simple.log
+write(1, "write me to stdout\n\0", 20)  = 20
+ > /lib/x86_64-linux-gnu/libc-2.27.so(__write+0x14) [0x110154]
+ > /home/vkazanov/projects-my/strace-post/write-simple(do_write+0x50) [0x78a]
+ > /home/vkazanov/projects-my/strace-post/write-simple(main+0x14) [0x7d1]
+ > /lib/x86_64-linux-gnu/libc-2.27.so(__libc_start_main+0xe7) [0x21b97]
+ > /home/vkazanov/projects-my/strace-post/write-simple(_start+0x2a) [0x65a]
++++ exited with 0 +++
+#+end_example
+
+* TODO Пример: инъекция ошибок, кодов возврата и задержек
