@@ -23,7 +23,7 @@
 
     debuggers only? any other tools using it in v6?
 
-  - The Design of the Unix Operating System (1986) already contains ptrace (with an example)
+  - The Design of the Unix Operating System (1986) contains ptrace (with a good example)
 
     https://github.com/suvratapte/Maurice-Bach-Notes/blob/00943a692099e2c1d69c0b5ef77b05cdf1340c8c/11-Interprocess-Communication.md
 
