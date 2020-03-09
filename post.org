@@ -45,6 +45,11 @@
 
 * Пример: запуск программы под управлением strace
 
+В качестве первого примера использования strace, пожалуй, стоит начать с популярнейшего из способов
+использования утилиты: запуска исследуемого приложения непосредственно под управлением strace. А
+чтобы копаться в бесконечных листингах мы напишем [[https://github.com/vkazanov/strace-post/blob/master/examples/write-simple.c][минимальную программу]], состояющую буквально из
+единственного вызова:
+
 #+BEGIN_SRC c
 int main(int argc, char *argv[])
 {
@@ -60,11 +65,18 @@ int main(int argc, char *argv[])
 
 #+END_SRC
 
+Соберем программу и убедимся, что она работает:
+
 #+begin_example
-$ gcc examples/write-simple.c -o write
-$ ./write
+$ gcc examples/write-simple.c -o write-simple
+$ ./write-simple
 write me to stdout
-$ strace ./write
+#+end_example
+
+И, наконец, запустим ее под управлением strace:
+
+#+begin_example
+$ strace ./write-simple
 pexecve("./write", ["./write"], 0x7ffebd6145b0 /* 71 vars */) = 0
 brk(NULL)                               = 0x55ff5489e000
 access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
@@ -93,10 +105,13 @@ write(1, "write me to stdout\n\0", 20write me to stdout
 exit_group(0)                           = ?
 #+end_example
 
+Гм, очень многословно и не очень познавательно. Давайте для начала разделим стандартный поток вывода
+программы и стандартный вывод ошибок strace при помощи ключа =-o=:
+
 #+begin_example
-$ strace ./write -o write.log
+$ strace -o write-simple.log ./write-simple
 write me to stdout
-$ cat write.log
+$ cat write-simple.log
 execve("./write", ["./write"], 0x7ffee8696810 /* 71 vars */) = 0
 brk(NULL)                               = 0x5620a234a000
 access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
@@ -125,7 +140,64 @@ exit_group(0)                           = ?
 +++ exited with 0 +++
 #+end_example
 
+Теперь весь вывод пишется в отдельный файл, а стандартные потоки исследуемой программы не
+перемешиваются с описаниями системных вызовов. Впрочем, в исследовании интересных вызовов нам это
+все равно не помогает - даже примитивная программа делает их слишком много. Предположим, что нас
+интересуют только вызовы write:
+
+#+begin_example
+$ strace -e trace=write -owrite-simple.log ./write-simple
+write me to stdout
+$ cat write-simple.log
+write(1, "write me to stdout\n\0", 20
+)  = 20
++++ exited with 0 +++
+#+end_example
+
+Ключ =-e= позволяет указывать выражения, по которым будут фильтроваться системные вызовы. Самый
+популярный вариант условия, естественно, это =trace=*=, при помощи которого можно оставлять интересные
+системные вызовы или, наоборот, исключать неинтересные.
+
+Давай уберем системные вызовы, связанные с выделением и высвобождением памяти:
+
+#+begin_example
+$ strace -e trace=\!brk,mmap,mprotect,munmap -owrite-simple.log ./write-simple
+write me to stdout
+$ cat write-simple.log
+execve("./write-simple", ["./write-simple"], 0x7ffe9972a498 /* 69 vars */) = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=124066, ...}) = 0
+close(3)                                = 0
+access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
+fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7f00f0be74c0) = 0
+write(1, "write me to stdout\n\0", 20)  = 20
+exit_group(0)                           = ?
++++ exited with 0 +++
+#+end_example
+
+Обратите внимание на экранированный восклицательный знак в списке исключенных вызовов: этого требует
+командная оболочка (англ. shell).
+
+Обратите внимание, что в моей версии glibc завершает исполнение процесса системный вызов =exit_group=
+, а не более традиционный =_exit= . Это еще одна проблема работы на уровне strace: интерфейс, с
+которым работает программист не имеет прямого отношения к системным вызовам. Более того, интерфейс
+тот регулярно меняется в зависимости от реализации и платформы.
+
 * Пример: присоединение к работающему процессу
+
+Изначально системный вызов ptrace, на котором построены все возможности strace, требовал
+специального запуска программы. Такое ограничение, быть может, звучало разумно во времени Version 6
+Unix, в наших дни этого уже недостаточного: бывает необходимо исследовать проблемы прямо на
+работающей программе. Типичный пример - заблокированный на дескрипторе или спящий процесс. Поэтому
+современные strace и отладчики научились просоединяться к процессам на лету.
+
+Давайте посмотрим на пример "зависнувшей" программы:
 
 #+BEGIN_SRC c
 int main(int argc, char *argv[])
@@ -145,44 +217,18 @@ int main(int argc, char *argv[])
 }
 #+END_SRC
 
+Соберем программу и убедимся, что она "зависла":
+
 #+begin_example
 $ gcc examples/write-sleep.c -o write-sleep
 $ ./write-sleep
 ./write-sleep
 write me
 ^C
-$ strace -o write-sleep.log ./write-sleep
-write me
-^C
-$ cat write-sleep.log
-execve("./write-sleep", ["./write-sleep"], 0x7fff3ff9c7f0 /* 75 vars */) = 0
-brk(NULL)                               = 0x56197a276000
-access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
-access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
-openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
-fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
-mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7ff9368e7000
-close(3)                                = 0
-access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
-openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
-fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
-mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7ff9368e5000
-mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7ff936300000
-mprotect(0x7ff9364e7000, 2097152, PROT_NONE) = 0
-mmap(0x7ff9366e7000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7ff9366e7000
-mmap(0x7ff9366ed000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7ff9366ed000
-close(3)                                = 0
-arch_prctl(ARCH_SET_FS, 0x7ff9368e64c0) = 0
-mprotect(0x7ff9366e7000, 16384, PROT_READ) = 0
-mprotect(0x561979515000, 4096, PROT_READ) = 0
-mprotect(0x7ff936918000, 4096, PROT_READ) = 0
-munmap(0x7ff9368e7000, 197410)          = 0
-write(1, "write me\n\0", 10)            = 10
-pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
---- SIGINT {si_signo=SIGINT, si_code=SI_KERNEL} ---
-+++ killed by SIGINT +++
+$
 #+end_example
+
+А теперь попробуем присоединиться к ней:
 
 #+begin_example
 $ ./write-sleep &
@@ -191,9 +237,29 @@ write me
 $ strace -p 20447
 strace: Process 20447 attached
 pause(
+^Cstrace: Process 15329 detached
+ <detached ...>
+$ strace -o write-sleep.log -p 20447 &
+strace: Process 20447 attached
+$ kill -CONT 15329
+$ cat write-sleep.log
+pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
+--- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=14989, si_uid=1001} ---
+pause(
+$ kill -TERM 15329
+$ cat write-sleep.log
+pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
+--- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=14989, si_uid=1001} ---
+pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
+--- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=14989, si_uid=1001} ---
++++ killed by SIGTERM +++
 #+end_example
 
-* Пример: отслеживание дочерних процессов
+Итак, мы запустили "зависающую" программу и присоединились к ней при помощи strace. Выяснились две
+вещи: системный вызов pause игнорирует сигналы без обработчиков и, что интересней, strace позволяет
+отслеживать не только системные вызовы, но и входящие сигналы.
+
+* TODO Пример: отслеживание дочерних процессов
 
 #+BEGIN_SRC c
 int main(int argc, char *argv[])
@@ -309,7 +375,7 @@ $ cat fork-write.log
 13965 +++ exited with 0 +++
 #+end_example
 
-* Пример: фильтрация системных вызовов
+* TODO Пример: фильтрация системных вызовов
 
 #+begin_example
 $ strace -o write.log ./write
@@ -401,7 +467,7 @@ munmap(0x7fd5fe669000, 197410)          = 0
 +++ exited with 0 +++
 #+end_example
 
-* Пример: пути к файлами вместо дескрипторов
+* TODO Пример: пути к файлами вместо дескрипторов
 
 #+begin_src c
 void do_write(int out_fd)
@@ -444,7 +510,7 @@ write(3</tmp/output_fileCf5MyW>, "write me to a file\n\0", 20) = 20
 +++ exited with 0 +++
 #+end_example
 
-* Пример: отслеживание обращений к путям
+* TODO Пример: отслеживание обращений к путям
 
 #+begin_src c
 void do_write(int out_fd)
@@ -523,7 +589,7 @@ write(3</tmp/test_file.log>, "write me to a file\n\0", 20) = 20
 +++ exited with 0 +++
 #+end_example
 
-* Пример: многопоточные программы
+* TODO Пример: многопоточные программы
 
 #+begin_src c
 void *thread(void *arg)
@@ -604,7 +670,7 @@ $ cat thread-write.log
 30418 +++ exited with 0 +++
 #+end_example
 
-* Пример: стек процесса в момент системного вызова
+* TODO Пример: стек процесса в момент системного вызова
 
 #+begin_src c
 void do_write(void)
@@ -637,7 +703,7 @@ write(1, "write me to stdout\n\0", 20)  = 20
 +++ exited with 0 +++
 #+end_example
 
-* Пример: инъекция ошибок
+* TODO Пример: инъекция ошибок
 
 #+begin_src c
 #include <unistd.h>
