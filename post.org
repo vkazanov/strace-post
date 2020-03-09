@@ -232,20 +232,23 @@ $
 
 #+begin_example
 $ ./write-sleep &
-[1] 20447
+[1] 15329
 write me
-$ strace -p 20447
-strace: Process 20447 attached
+$ strace -p 15329
+strace: Process 15329 attached
 pause(
 ^Cstrace: Process 15329 detached
  <detached ...>
-$ strace -o write-sleep.log -p 20447 &
-strace: Process 20447 attached
+$
+$ strace -o write-sleep.log -p 15329 &
+strace: Process 15329 attached
+$
 $ kill -CONT 15329
 $ cat write-sleep.log
 pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
 --- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=14989, si_uid=1001} ---
 pause(
+$
 $ kill -TERM 15329
 $ cat write-sleep.log
 pause()                                 = ? ERESTARTNOHAND (To be restarted if no handler)
