@@ -33,7 +33,7 @@
   по-прежнему опирается на системный вызов [[https://linux.die.net/man/2/ptrace][ptrace]], обросший множеством специфичных для Linux
   расширений.
 
-  Текущий - и весьма активный - мейнтейнер strace - [[https://github.com/ldv-alt][Дмитрий Левин]] (англ. Dmitry Levin). При нем
+  Текущий (и весьма активный) мейнтейнер strace - [[https://github.com/ldv-alt][Дмитрий Левин]] (англ. Dmitry Levin). При нем
   утилита обросла множеством возможностей, вроде инъекции ошибок в системные вызовы, поддержкой
   широко спектра архитектур и, что самое главное, [[https://en.wikipedia.org/wiki/Strace#/media/File:Strace_logo.svg][маскотом-страусом]]. Неформальные источники
   утверждают, что страуса было решено использовать из-за созвучности русского слова "страус" и
@@ -41,7 +41,6 @@
 
   Немаловажно, что системный вызов ptrace и трассировщики так и не было включены в POSIX, несмотря
   на длинную историю и наличие реализации в Linux, FreeBSD, OpenBSD и традиционных Unix.
-
 
 * Пример: запуск программы под управлением strace
 
@@ -197,7 +196,7 @@ Unix, в наших дни этого уже недостаточного: бы�
 работающей программе. Типичный пример - заблокированный на дескрипторе или спящий процесс. Поэтому
 современные strace и отладчики научились просоединяться к процессам на лету.
 
-Давайте посмотрим на пример "зависнувшей" программы:
+Давайте посмотрим на пример "зависнувшей" [[https://github.com/vkazanov/strace-post/blob/master/examples/write-sleep.c][программы]]:
 
 #+BEGIN_SRC c
 int main(int argc, char *argv[])
@@ -239,7 +238,11 @@ strace: Process 15329 attached
 pause(
 ^Cstrace: Process 15329 detached
  <detached ...>
-$
+#+end_example
+
+Программа заблокирована вызовом pause. Проверим, как программа отреагирует на сигнал:
+
+#+begin_example
 $ strace -o write-sleep.log -p 15329 &
 strace: Process 15329 attached
 $
@@ -258,11 +261,14 @@ pause()                                 = ? ERESTARTNOHAND (To be restarted if n
 +++ killed by SIGTERM +++
 #+end_example
 
-Итак, мы запустили "зависающую" программу и присоединились к ней при помощи strace. Выяснились две
+Итак, мы запустили "зависнувшую" программу и присоединились к ней при помощи strace. Выяснились две
 вещи: системный вызов pause игнорирует сигналы без обработчиков и, что интересней, strace позволяет
 отслеживать не только системные вызовы, но и входящие сигналы.
 
-* TODO Пример: отслеживание дочерних процессов
+* Пример: отслеживание дочерних процессов
+
+Работа с процессами через вызов fork - основа всех UNIX. Дайте посмотрим, как strace работает с
+деревом процессом на примере несложной "плодящейся" [[https://github.com/vkazanov/strace-post/blob/master/examples/fork-write.c][программы]]:
 
 #+BEGIN_SRC c
 int main(int argc, char *argv[])
@@ -286,96 +292,62 @@ int main(int argc, char *argv[])
 }
 #+END_SRC
 
+Здесь исходный процесс создает дочерний процесс, оба пишут в стандартный поток вывода:
+
 #+begin_example
 $ gcc examples/fork-write.c -o fork-write
 $ ./fork-write
 parent (self=11274, child=11275)
 child (self=11275)
-$ strace -o fork-write.log ./fork-write
-parent (self=12084, child=12085)
-child (self=12085)
+#+end_example
+
+По умолчанию мы увидим только те системные вызовы родителького процесса:
+
+#+begin_example
+$ strace -e trace=write -ofork-write.log ./fork-write
+child (self=22049)
+parent (self=22048, child=22049)
 $ cat fork-write.log
-execve("./fork-write", ["./fork-write"], 0x7ffc424cef40 /* 71 vars */) = 0
-brk(NULL)                               = 0x55e9d8a83000
-access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
-access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
-openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
-fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
-mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f251dba1000
-close(3)                                = 0
-access("/etc/ld.so.nohwcap", F_OK)      = -1 ENOENT (No such file or directory)
-openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
-fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
-mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f251db9f000
-mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f251d5ba000
-mprotect(0x7f251d7a1000, 2097152, PROT_NONE) = 0
-mmap(0x7f251d9a1000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f251d9a1000
-mmap(0x7f251d9a7000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f251d9a7000
-close(3)                                = 0
-arch_prctl(ARCH_SET_FS, 0x7f251dba04c0) = 0
-mprotect(0x7f251d9a1000, 16384, PROT_READ) = 0
-mprotect(0x55e9d85c1000, 4096, PROT_READ) = 0
-mprotect(0x7f251dbd2000, 4096, PROT_READ) = 0
-munmap(0x7f251dba1000, 197410)          = 0
-getpid()                                = 12084
-clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f251dba0790) = 12085
-fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
-brk(NULL)                               = 0x55e9d8a83000
-brk(0x55e9d8aa4000)                     = 0x55e9d8aa4000
-write(1, "parent (self=12084, child=12085)"..., 33) = 33
-wait4(-1, NULL, 0, NULL)                = 12085
---- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=12085, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
-exit_group(0)                           = ?
+write(1, "parent (self=22048, child=22049)"..., 33) = 33
+--- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=22049, si_uid=1001, si_status=0, si_utime=0, si_stime=0} ---
 +++ exited with 0 +++
 #+end_example
 
+Отслеживать все дерево процессов помогает флаг =-f=, с которым strace отслеживает системные вызовы в
+процессов-потомков. К каждой строке вывода при этом добавляется =pid= процесса, делающего системный
+вывод:
+
 #+begin_example
-$ strace -f -o fork-write.log ./fork-write
-parent (self=13965, child=13966)
-child (self=13966)
+$ strace -f -e trace=write -ofork-write.log ./fork-write
+parent (self=22710, child=22711)
+child (self=22711)
 $ cat fork-write.log
-13965 execve("./fork-write", ["./fork-write"], 0x7ffe20ff4128 /* 71 vars */) = 0
-13965 brk(NULL)                         = 0x56090d54d000
-13965 access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
-13965 access("/etc/ld.so.preload", R_OK) = -1 ENOENT (No such file or directory)
-13965 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
-13965 fstat(3, {st_mode=S_IFREG|0644, st_size=197410, ...}) = 0
-13965 mmap(NULL, 197410, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f22aa157000
-13965 close(3)                          = 0
-13965 access("/etc/ld.so.nohwcap", F_OK) = -1 ENOENT (No such file or directory)
-13965 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-13965 read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
-13965 fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
-13965 mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f22aa155000
-13965 mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f22a9b70000
-13965 mprotect(0x7f22a9d57000, 2097152, PROT_NONE) = 0
-13965 mmap(0x7f22a9f57000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f22a9f57000
-13965 mmap(0x7f22a9f5d000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f22a9f5d000
-13965 close(3)                          = 0
-13965 arch_prctl(ARCH_SET_FS, 0x7f22aa1564c0) = 0
-13965 mprotect(0x7f22a9f57000, 16384, PROT_READ) = 0
-13965 mprotect(0x56090c3dc000, 4096, PROT_READ) = 0
-13965 mprotect(0x7f22aa188000, 4096, PROT_READ) = 0
-13965 munmap(0x7f22aa157000, 197410)    = 0
-13965 getpid()                          = 13965
-13965 clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f22aa156790) = 13966
-13965 fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
-13965 brk(NULL)                         = 0x56090d54d000
-13965 brk(0x56090d56e000)               = 0x56090d56e000
-13965 write(1, "parent (self=13965, child=13966)"..., 33) = 33
-13965 wait4(-1,  <unfinished ...>
-13966 getpid()                          = 13966
-13966 fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 1), ...}) = 0
-13966 brk(NULL)                         = 0x56090d54d000
-13966 brk(0x56090d56e000)               = 0x56090d56e000
-13966 write(1, "child (self=13966)\n", 19) = 19
-13966 exit_group(0)                     = ?
-13966 +++ exited with 0 +++
-13965 <... wait4 resumed> NULL, 0, NULL) = 13966
-13965 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=13966, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
-13965 exit_group(0)                     = ?
-13965 +++ exited with 0 +++
+22710 write(1, "parent (self=22710, child=22711)"..., 33) = 33
+22711 write(1, "child (self=22711)\n", 19) = 19
+22711 +++ exited with 0 +++
+22710 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=22711, si_uid=1001, si_status=0, si_utime=0, si_stime=0} ---
+22710 +++ exited with 0 +++
+
+#+end_example
+
+В этом контексте может пригодиться фильтрация групп системных вызовов:
+
+#+begin_example
+$ strace -f -e trace=%process -ofork-write.log ./fork-write
+parent (self=23610, child=23611)
+child (self=23611)
+$ cat fork-write.log
+23610 execve("./fork-write", ["./fork-write"], 0x7fff696ff720 /* 63 vars */) = 0
+23610 arch_prctl(ARCH_SET_FS, 0x7f3d03ba44c0) = 0
+23610 clone(child_stack=NULL, flags=CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, child_tidptr=0x7f3d03ba4790) = 23611
+23610 wait4(-1,  <unfinished ...>
+23611 exit_group(0)                     = ?
+23611 +++ exited with 0 +++
+23610 <... wait4 resumed> NULL, 0, NULL) = 23611
+23610 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=23611, si_uid=1001, si_status=0, si_utime=0, si_stime=0} ---
+23610 exit_group(0)                     = ?
+23610 +++ exited with 0 +++
+
 #+end_example
 
 * TODO Пример: фильтрация системных вызовов
