@@ -490,7 +490,10 @@ write(3</tmp/test_file.log>, "write me to a file\n\0", 20) = 20
 +++ exited with 0 +++
 #+end_example
 
-* TODO Пример: многопоточные программы
+* Пример: многопоточные программы
+
+Strace может помочь и при работе с многопоточной [[https://github.com/vkazanov/strace-post/blob/master/examples/thread-write.c][программой]]. Следующая программа пишет в стандартный
+поток вывода из двух потоков:
 
 #+begin_src c
 void *thread(void *arg)
@@ -526,52 +529,57 @@ int main(int argc, char *argv[])
 }
 #+end_src
 
+Собирать ее надо, естественно, со специальным приветом линковщика - флагом =-pthread=:
+
 #+begin_example
 $ gcc examples/thread-write.c -pthread -o thread-write
+$ ./thread-write
+/thread-write
+Initial thread: launching a thread
+Initial thread: joining a thread
+Secondary thread: working
+Secondary thread: done
+Initial thread: done
+$
+#+end_example
+
+Флаг =-f=, как и в случае с обычными процессами, добавит в начало каждой строки pid процесса.
+
+#+begin_quote
+Естественно, что речь идет не об идентификаторе потока в смысле реализации стандарта POSIX threads,
+а просто номер, используемый планировщиком задач Linux. С точки зрения последнего нет никаких
+процессов или потоков, но есть задачи, которые надо распределить по доступным ядрам машины.
+#+end_quote
+
+При работе в несколько потоков системных вызовов становится слишком много:
+
+#+begin_example
 $ strace -f -othread-write.log ./thread-write
 $ wc -l thread-write.log
 60 thread-write.log
-$ strace -f -e trace="%process,%desc" -othread-write.log ./thread-write
-$ wc -l thread-write.log
-34 thread-write.log
-$ cat thread-write.log
-30418 execve("./thread-write", ["./thread-write"], 0x7fff42e01b80 /* 64 vars */) = 0
-30418 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
-30418 fstat(3, {st_mode=S_IFREG|0644, st_size=124066, ...}) = 0
-30418 mmap(NULL, 124066, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7fa91238c000
-30418 close(3)                          = 0
-30418 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libpthread.so.0", O_RDONLY|O_CLOEXEC) = 3
-30418 read(3, "\177ELF\2\1\1\0\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0000b\0\0\0\0\0\0"..., 832) = 832
-30418 fstat(3, {st_mode=S_IFREG|0755, st_size=144976, ...}) = 0
-30418 mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fa91238a000
-30418 mmap(NULL, 2221184, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fa911f65000
-30418 mmap(0x7fa91217e000, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x19000) = 0x7fa91217e000
-30418 mmap(0x7fa912180000, 13440, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fa912180000
-30418 close(3)                          = 0
-30418 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-30418 read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\260\34\2\0\0\0\0\0"..., 832) = 832
-30418 fstat(3, {st_mode=S_IFREG|0755, st_size=2030544, ...}) = 0
-30418 mmap(NULL, 4131552, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7fa911b74000
-30418 mmap(0x7fa911f5b000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7fa911f5b000
-30418 mmap(0x7fa911f61000, 15072, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7fa911f61000
-30418 close(3)                          = 0
-30418 mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fa912387000
-30418 arch_prctl(ARCH_SET_FS, 0x7fa912387740) = 0
-30418 fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(136, 0), ...}) = 0
-30418 write(1, "Initial thread: launching a thre"..., 35) = 35
-30418 mmap(NULL, 8392704, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_STACK, -1, 0) = 0x7fa911373000
-30418 clone(child_stack=0x7fa911b72fb0, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7fa911b739d0, tls=0x7fa911b73700, child_tidptr=0x7fa911b739d0) = 30419
-30418 write(1, "Initial thread: joining a thread"..., 33) = 33
-30419 write(1, "Secondary thread: working\n", 26) = 26
-30419 write(1, "Secondary thread: done\n", 23) = 23
-30419 exit(0)                           = ?
-30419 +++ exited with 0 +++
-30418 write(1, "Initial thread: done", 20) = 20
-30418 exit_group(0)                     = ?
-30418 +++ exited with 0 +++
 #+end_example
 
-Как думаете, какой системный вызов используется для создания нового процесса? Чем такой вызов для потоков
+Имеет смысл ограничиться только управлением процессами и системным вызовом write:
+
+#+begin_example
+$ strace -f -e trace="%process,write" -othread-write.log ./thread-write
+$ cat thread-write.log
+18211 execve("./thread-write", ["./thread-write"], 0x7ffc6b8d58f0 /* 64 vars */) = 0
+18211 arch_prctl(ARCH_SET_FS, 0x7f38ea3b7740) = 0
+18211 write(1, "Initial thread: launching a thre"..., 35) = 35
+18211 clone(child_stack=0x7f38e9ba2fb0, flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, parent_tidptr=0x7f38e9ba39d0, tls=0x7f38e9ba3700, child_tidptr=0x7f38e9ba39d0) = 18212
+18211 write(1, "Initial thread: joining a thread"..., 33) = 33
+18212 write(1, "Secondary thread: working\n", 26) = 26
+18212 write(1, "Secondary thread: done\n", 23) = 23
+18212 exit(0)                           = ?
+18212 +++ exited with 0 +++
+18211 write(1, "Initial thread: done", 20) = 20
+18211 exit_group(0)                     = ?
+18211 +++ exited with 0 +++
+
+#+end_example
+
+Какой системный вызов используется для создания нового процесса? Чем такой вызов для потоков
 отличается от вызова для процессов?
 
 * TODO Пример: стек процесса в момент системного вызова
