@@ -19,9 +19,9 @@
   [[https://en.wikipedia.org/wiki/UNIX_System_V#SVR4][System V Release 4]], 1988 года) на этой основе появились специализированные отладчики:
   трассировщики системных вызовов. Самым ранним из них, насколько мне удалось выяснить, стал [[https://en.wikipedia.org/wiki/Truss_(Unix)][truss]].
 
-  Простота в использовании по сравнению и возможности исследовать поведение программ без доступа к
-  исходному коду сделали трассировщики обязательным атрибутом всех коммерческих и свободных
-  Unix-подобных операционных систем.
+  Простота в использовании и возможность исследовать поведение программ без доступа к исходному коду
+  сделали трассировщики обязательным атрибутом всех коммерческих и свободных Unix-подобных
+  операционных систем.
 
   [[https://stuff.mit.edu/afs/sipb/project/eichin/cruft/machine/sun/sun-Strace][Первая версия]] strace была опубликована Полом Кроненбургом (англ. Paul Kranenburg) в рассылке
   comp.sources.sun в 1992 году в качестве альтернативы закрытой утилите trace от Sun. Как клон, так
@@ -36,8 +36,8 @@
   Текущий (и весьма активный) мейнтейнер strace - [[https://github.com/ldv-alt][Дмитрий Левин]] (англ. Dmitry Levin). При нем
   утилита обросла множеством возможностей, вроде инъекции ошибок в системные вызовы, поддержкой
   широко спектра архитектур и, что самое главное, [[https://en.wikipedia.org/wiki/Strace#/media/File:Strace_logo.svg][маскотом-страусом]]. Неформальные источники
-  утверждают, что страуса было решено использовать из-за созвучности русского слова "страус" и
-  английского "strace".
+  утверждают, что выбор пал на страуса из-за созвучности русского слова "страус" и английского
+  "strace".
 
   Немаловажно, что системный вызов ptrace и трассировщики так и не было включены в POSIX, несмотря
   на длинную историю и наличие реализации в Linux, FreeBSD, OpenBSD и традиционных Unix.
@@ -582,7 +582,10 @@ $ cat thread-write.log
 Какой системный вызов используется для создания нового процесса? Чем такой вызов для потоков
 отличается от вызова для процессов?
 
-* TODO Пример: стек процесса в момент системного вызова
+* Пример: стек процесса в момент системного вызова
+
+Одна из недавно появившихся в strace возможностей - отображение стека вызовов функций в момент
+системного вызова. Простой [[https://github.com/vkazanov/strace-post/blob/master/examples/write-simple.c][пример]]:
 
 #+begin_src c
 void do_write(void)
@@ -601,9 +604,12 @@ int main(int argc, char *argv[])
 }
 #+end_src
 
+Естественно, что вывод программы при этом становится очень многословным и помимо, собственно, флага
+=-k= (отображение стека вызовов) имеет смысл сразу фильтровать по имени системного вызова:
+
 #+begin_example
 $ gcc examples/write-simple.c -o write-simple
-$ strace -k -e trace="write" -owrite-simple.log ./write-simple
+$ strace -k -e trace=write -o write-simple.log ./write-simple
 write me to stdout
 $ cat write-simple.log
 write(1, "write me to stdout\n\0", 20)  = 20
@@ -615,7 +621,10 @@ write(1, "write me to stdout\n\0", 20)  = 20
 +++ exited with 0 +++
 #+end_example
 
-* TODO Пример: инъекция ошибок
+* Пример: инъекция ошибок
+
+И еще одна новая иочень полезная возможность: инъекция ошибок. Вот [[https://github.com/vkazanov/strace-post/blob/master/examples/write-twice.c][программа]], пишущая две строки в
+поток вывода:
 
 #+begin_src c
 #include <unistd.h>
@@ -644,6 +653,8 @@ int main(int argc, char *argv[])
 }
 #+end_src
 
+Отслеживаем оба вызова write:
+
 #+begin_example
 $ gcc examples/write-twice.c -o write-twice
 $ ./write-twice
@@ -658,18 +669,31 @@ write(1, "write me 2\n\0", 12)          = 12
 +++ exited with 0 +++
 #+end_example
 
+А теперь используем выражение inject, чтобы вставить ошибку EBADF во все вызовы write:
+
 #+begin_example
 $ strace -e trace=write -e inject=write:error=EBADF -owrite-twice.log ./write-twice
 $ cat write-twice.log
 write(1, "write me 1\n\0", 12)          = -1 EBADF (Bad file descriptor) (INJECTED)
 write(3, "write: Bad file descriptor\n", 27) = -1 EBADF (Bad file descriptor) (INJECTED)
 +++ exited with 1 +++
+#+end_example
+
+Интересно, что ошибки возвращают *все* вызовы write, включая вызов, скрытый за perror. Имеет смысл
+возвращать ошибку только для первого из вызовов:
+
+#+begin_example
 $ strace -e trace=write -e inject=write:error=EBADF:when=1 -owrite-twice.log ./write-twice
 write: Bad file descriptor
 $ cat write-twice.log
 write(1, "write me 1\n\0", 12)          = -1 EBADF (Bad file descriptor) (INJECTED)
 write(3, "write: Bad file descriptor\n", 27) = 27
 +++ exited with 1 +++
+#+end_example
+
+Или второго:
+
+#+begin_example
 $ strace -e trace=write -e inject=write:error=EBADF:when=2 -owrite-twice.log ./write-twice
 write me 1
 write: Bad file descriptor
@@ -680,6 +704,8 @@ write(3, "write: Bad file descriptor\n", 27) = 27
 +++ exited with 1 +++
 #+end_example
 
+Вид ошибки указывать не обязательно:
+
 #+begin_example
 $ strace -e trace=write -e fault=write:when=1 -owrite-twice.log ./write-twice
 $ cat write-twice.log
@@ -687,3 +713,16 @@ write(1, "write me 1\n\0", 12)          = -1 ENOSYS (Function not implemented) (
 write(3, "write: Function not implemented\n", 32) = 32
 +++ exited with 1 +++
 #+end_example
+
+В сочетании с другими флагами можно "ломать" обращения к конкретному файлу. Пример:
+
+#+begin_example
+$ strace -y -P/tmp/test_file.log -e inject=file:error=ENOENT -o write-file.log ./write-file /tmp/test_file.log
+open: No such file or directory
+$ cat write-file.log
+openat(AT_FDCWD, "/tmp/test_file.log", O_WRONLY|O_APPEND) = -1 ENOENT (No such file or directory) (INJECTED)
++++ exited with 1 +++
+#+end_example
+
+Помимо, собственно, инъекции ошибок можно имитировать задержки при выполнение вызовов, получение
+сигналов и [[http://www.man7.org/linux/man-pages/man1/strace.1.html][множество других необходимых при отладке вещей]].
