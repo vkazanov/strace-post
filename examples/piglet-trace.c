@@ -59,12 +59,14 @@ int main(int argc, char *argv[])
     if (waitpid(child_pid, NULL, 0) == -1)
         err(EXIT_FAILURE, "traceme -> waitpid");
 
-    /* A non-portable structure defined for ptrace/GDB/strace usage mostly. It
-     * allows to conveniently dump and access register state using ptrace. */
-    struct user_regs_struct registers;
 
-    /* A system call tracing loop. */
+    /* A system call tracing loop, one interation per call. */
     for (;;) {
+        /* A non-portable structure defined for ptrace/GDB/strace usage mostly.
+         * It allows to conveniently dump and access register state using
+         * ptrace. */
+        struct user_regs_struct registers;
+
         /* Enter syscall: continue execution until the next system call
          * beginning. Stop right before syscall.
          *
@@ -116,5 +118,5 @@ int main(int argc, char *argv[])
         print_syscall_exit(registers.rax);
     }
 
-        return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }

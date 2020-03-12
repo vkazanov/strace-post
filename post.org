@@ -781,4 +781,115 @@ Tracee terminated
 Piglet Trace понимает порядка сотни системных вызовов (см. приложенную [[https://github.com/vkazanov/strace-post/blob/master/examples/piglet-trace-syscalls.h][таблицу]]) Linux и работает
 только на архитектуре x86-64, чего для учебных целей вполне хватает.
 
-Давайте разберем работу нашего клона
+Давайте разберем работу нашего клона. Под Linux для отладчиков и трассировщиков используется, как
+упоминалось выше, системный вызов ptrace. Последний работает посредством передачи в первом аргументе
+идентификаторов выполняемых над исследуемым процессом команд, из которых нам потребуются только
+PTRACE_TRACEME, PTRACE_SYSCALL и PTRACE_GETREGS.
+
+Работа трассировщика начинается в традиционном UNIX-стиле: fork(2) запускает дочерний процесс;
+последний с помощью exec(3) запускает исследуемую программу. Единственная тонкость здесь - вызов
+ptrace(PTRACE_TRACEME) перед exec. Процесс-потомок, таким образом, ожидает, что процесс-родитель
+будет его отслеживать:
+
+#+begin_src c
+pid_t child_pid = fork();
+switch (child_pid) {
+case -1:
+    err(EXIT_FAILURE, "fork");
+case 0:
+    /* Child here */
+    /* A traced mode has to be enabled. A parent will have to wait(2) for it
+     * to happen. */
+    ptrace(PTRACE_TRACEME, 0, NULL, NULL);
+    /* Replace itself with a program to be run. */
+    execvp(argv[1], argv + 1);
+    err(EXIT_FAILURE, "exec");
+}
+#+end_src
+
+Процесс-родитель теперь должен вызвать wait(2) на дочернем процесс, то есть убедиться, что
+переключение в режим трассировки произошло:
+
+#+begin_src c
+/* Parent */
+
+/* First we wait for the child to set the traced mode (see
+ * ptrace(PTRACE_TRACEME) above) */
+if (waitpid(child_pid, NULL, 0) == -1)
+    err(EXIT_FAILURE, "traceme -> waitpid");
+#+end_src
+
+На этом приготовления закончены и можно приступать, собственно, к отслеживанию системных вызовов в
+бесконечном цикле.
+
+Вызов ptrace(PTRACE_SYSCALL) гарантирует, что последующий wait родителя завершится либо перед
+исполнением системного вызова, либо сразу после его завершения. Между двумя вызовами можно провести
+какие-либо действия: подменить вызов на альтернативный, изменить аргументы или возвращаемое
+значение.
+
+Нам же достаточно дважды вызвать команду ptrace(PTRACE_GETREGS), чтобы получить состояние регистра
+rax до вызова (номер системного вызова) и сразу после (возвращаемое значение).
+
+Собственно, цикл:
+
+#+begin_src c
+/* A system call tracing loop, one interation per call. */
+for (;;) {
+    /* A non-portable structure defined for ptrace/GDB/strace usage mostly.
+     * It allows to conveniently dump and access register state using
+     * ptrace. */
+    struct user_regs_struct registers;
+
+    /* Enter syscall: continue execution until the next system call
+     * beginning. Stop right before syscall.
+     *
+     * It's possible to change the system call number, system call
+     * arguments, return value or even avoid executing the system call
+     * completely. */
+    if (ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL) == -1)
+        err(EXIT_FAILURE, "enter_syscall");
+    if (waitpid(child_pid, NULL, 0) == -1)
+        err(EXIT_FAILURE, "enter_syscall -> waitpid");
+
+    /* According to the x86-64 system call convention on Linux (see man 2
+     * syscall) the number identifying a syscall should be put into the rax
+     * general purpose register, with the rest of the arguments residing in
+     * other general purpose registers (rdi,rsi, rdx, r10, r8, r9). */
+    if (ptrace(PTRACE_GETREGS, child_pid, NULL, &registers) == -1)
+        err(EXIT_FAILURE, "enter_syscall -> getregs");
+
+    /* Note how orig_rax is used here. That's because on x86-64 rax is used
+     * both for executing a syscall, and returning a value from it. To
+     * differentiate between the cases both rax and orig_rax are updated on
+     * syscall entry/exit, and only rax is updated on exit. */
+    print_syscall_enter(registers.orig_rax);
+
+    /* Exit syscall: execute of the syscall, and stop on system
+     * call exit.
+     *
+     * More system call tinkering possible: change the return value, record
+     * time it took to finish the system call, etc. */
+    if (ptrace(PTRACE_SYSCALL, child_pid, NULL, NULL) == -1)
+        err(EXIT_FAILURE, "exit_syscall");
+    if (waitpid(child_pid, NULL, 0) == -1)
+        err(EXIT_FAILURE, "exit_syscall -> waitpid");
+
+    /* Retrieve register state again as we want to inspect system call
+     * return value. */
+    if (ptrace(PTRACE_GETREGS, child_pid, NULL, &registers) == -1) {
+        /* ESRCH is returned when a child terminates using a syscall and no
+         * return value is possible, e.g. as a result of exit(2). */
+        if (errno == ESRCH) {
+            fprintf(stderr, "\nTracee terminated\n");
+            break;
+        }
+        err(EXIT_FAILURE, "exit_syscall -> getregs");
+    }
+
+    /* Done with this system call, let the next iteration handle the next
+     * one */
+    print_syscall_exit(registers.rax);
+}
+#+end_src
+
+Ну, вот и весь трассировщик. Теперь вы знаете, с чего начинать портирование [[https://en.wikipedia.org/wiki/DTrace][DTrace]] под Linux.
