@@ -14,7 +14,7 @@
 #include <syscall.h>
 
 /* A system call table */
-#include "tiny-trace-syscalls.h"
+#include "piglet-trace-syscalls.h"
 
 void print_syscall_enter(uint64_t syscall_num)
 {
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     /* A system call tracing loop. */
     for (;;) {
         /* Enter syscall: continue execution until the next system call
-         * beginning. This stops right before syscall.
+         * beginning. Stop right before syscall.
          *
          * It's possible to change the system call number, system call
          * arguments, return value or even avoid executing the system call
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
             /* ESRCH is returned when a child terminates using a syscall and no
              * return value is possible, e.g. as a result of exit(2). */
             if (errno == ESRCH) {
-                fprintf(stderr, "\nChild terminated\n");
+                fprintf(stderr, "\nTracee terminated\n");
                 break;
             }
             err(EXIT_FAILURE, "exit_syscall -> getregs");
