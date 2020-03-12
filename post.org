@@ -892,4 +892,5 @@ for (;;) {
 }
 #+end_src
 
-Ну, вот и весь трассировщик. Теперь вы знаете, с чего начинать портирование [[https://en.wikipedia.org/wiki/DTrace][DTrace]] под Linux.
+Ну, вот и весь трассировщик. Теперь вы знаете, с чего начинать очередное портирование [[https://en.wikipedia.org/wiki/DTrace][DTrace]] под
+Linux.
