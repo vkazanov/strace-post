@@ -56,7 +56,8 @@ int main(int argc, char *argv[])
 
     /* First we wait for the child to set the traced mode (see
      * ptrace(PTRACE_TRACEME) above) */
-    waitpid(child_pid, NULL, 0);
+    if (waitpid(child_pid, NULL, 0) == -1)
+        err(EXIT_FAILURE, "traceme -> waitpid");
 
     /* A non-portable structure defined for ptrace/GDB/strace usage mostly. It
      * allows to conveniently dump and access register state using ptrace. */
@@ -115,5 +116,5 @@ int main(int argc, char *argv[])
         print_syscall_exit(registers.rax);
     }
 
-    return EXIT_SUCCESS;
+        return EXIT_SUCCESS;
 }
